@@ -9,14 +9,14 @@ from thop.rnn_hooks import *
 
 from .utils import prGreen, prRed, prYellow
 
-if LooseVersion(torch.__version__) < LooseVersion("1.0.0"):
+if LooseVersion(flow.__version__) < LooseVersion("1.0.0"):
     logging.warning(
-        "You are using an old version PyTorch {version}, which THOP does NOT support.".format(
-            version=torch.__version__
+        "You are using an old version Pyflow {version}, which THOP does NOT support.".format(
+            version=flow.__version__
         )
     )
 
-default_dtype = torch.float64
+default_dtype = flow.float64
 
 register_hooks = {
     nn.ZeroPad2d: zero_ops,  # padding does not involve any multiplication.
@@ -65,9 +65,6 @@ register_hooks = {
     nn.PixelShuffle: zero_ops,
 }
 
-if LooseVersion(torch.__version__) >= LooseVersion("1.1.0"):
-    register_hooks.update({nn.SyncBatchNorm: count_normalization})
-
 
 def profile_origin(model, inputs, custom_ops=None, verbose=True, report_missing=False):
     handler_collection = []
@@ -87,11 +84,11 @@ def profile_origin(model, inputs, custom_ops=None, verbose=True, report_missing=
                 "Be careful, it might change your code's behavior." % str(m)
             )
 
-        m.register_buffer("total_ops", torch.zeros(1, dtype=default_dtype))
-        m.register_buffer("total_params", torch.zeros(1, dtype=default_dtype))
+        m.register_buffer("total_ops", flow.zeros(1, dtype=default_dtype))
+        m.register_buffer("total_params", flow.zeros(1, dtype=default_dtype))
 
         for p in m.parameters():
-            m.total_params += torch.DoubleTensor([p.numel()])
+            m.total_params += flow.DoubleTensor([p.numel()])
 
         m_type = type(m)
 
@@ -123,7 +120,7 @@ def profile_origin(model, inputs, custom_ops=None, verbose=True, report_missing=
     model.eval()
     model.apply(add_hooks)
 
-    with torch.no_grad():
+    with flow.no_grad():
         model(*inputs)
 
     total_ops = 0
@@ -158,11 +155,11 @@ def profile(
     model: nn.Module,
     inputs,
     custom_ops=None,
-    verbose=True,
+    verbose=False,
     ret_layer_info=False,
     report_missing=False,
 ):
-    handler_collection = {}
+    handler_collection = []
     types_collection = set()
     if custom_ops is None:
         custom_ops = {}
@@ -171,11 +168,8 @@ def profile(
         verbose = True
 
     def add_hooks(m: nn.Module):
-        m.register_buffer("total_ops", torch.zeros(1, dtype=torch.float64))
-        m.register_buffer("total_params", torch.zeros(1, dtype=torch.float64))
-
-        # for p in m.parameters():
-        #     m.total_params += torch.DoubleTensor([p.numel()])
+        m.register_buffer("total_ops", flow.zeros(1, dtype=flow.float64))
+        m.register_buffer("total_params", flow.zeros(1, dtype=flow.float64))
 
         m_type = type(m)
 
@@ -197,10 +191,9 @@ def profile(
                 )
 
         if fn is not None:
-            handler_collection[m] = (
-                m.register_forward_hook(fn),
-                m.register_forward_hook(count_parameters),
-            )
+            handler_collection.append(m)
+            m.register_forward_hook(fn)
+            m.register_forward_hook(count_parameters)
         types_collection.add(m_type)
 
     prev_training_status = model.training
@@ -208,37 +201,31 @@ def profile(
     model.eval()
     model.apply(add_hooks)
 
-    with torch.no_grad():
+    with flow.no_grad():
         model(*inputs)
 
-    def dfs_count(module: nn.Module, prefix="\t") -> (int, int):
-        total_ops, total_params = module.total_ops.item(), 0
+    def dfs_count(module, prefix="") -> (int, int):
+        total_ops, total_params = 0, 0
         ret_dict = {}
-        for n, m in module.named_children():
-            # if not hasattr(m, "total_ops") and not hasattr(m, "total_params"):  # and len(list(m.children())) > 0:
-            #     m_ops, m_params = dfs_count(m, prefix=prefix + "\t")
-            # else:
-            #     m_ops, m_params = m.total_ops, m.total_params
+        for i, m in enumerate(module.modules()):
             next_dict = {}
             if m in handler_collection and not isinstance(
                 m, (nn.Sequential, nn.ModuleList)
             ):
                 m_ops, m_params = m.total_ops.item(), m.total_params.item()
             else:
-                m_ops, m_params, next_dict = dfs_count(m, prefix=prefix + "\t")
-            ret_dict[n] = (m_ops, m_params, next_dict)
+                m_ops, m_params, next_dict = dfs_count(m, prefix=str(i)+".")
+            ret_dict[prefix+str(i)] = (m_ops, m_params, next_dict)
             total_ops += m_ops
             total_params += m_params
-        # print(prefix, module._get_name(), (total_ops, total_params))
+        print("prefix: "+prefix, module, module._get_name(), (total_ops, total_params))
         return total_ops, total_params, ret_dict
 
     total_ops, total_params, ret_dict = dfs_count(model)
 
     # reset model to original status
     model.train(prev_training_status)
-    for m, (op_handler, params_handler) in handler_collection.items():
-        op_handler.remove()
-        params_handler.remove()
+    for m in handler_collection:
         m._buffers.pop("total_ops")
         m._buffers.pop("total_params")
 

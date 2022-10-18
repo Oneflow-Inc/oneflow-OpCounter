@@ -1,7 +1,6 @@
 from .utils import clever_format
 from .profile import profile, profile_origin
-# from .onnx_profile import OnnxProfile
-import torch
+import oneflow as flow
 
-default_dtype = torch.float64
+default_dtype = flow.float64
 from .__version__ import __version__

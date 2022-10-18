@@ -12,7 +12,7 @@ fp = open("thop/__version__.py", "r").read()
 VERSION = eval(fp.strip().split()[-1])
 
 requirements = [
-    "torch",
+    "oneflow",
 ]
 
 # import subprocess
@@ -23,12 +23,12 @@ print(VERSION)
 
 setup(
     # Metadata
-    name="thop",
+    name="flowop",
     version=VERSION,
-    author="Ligeng Zhu",
-    author_email="ligeng.zhu+github@gmail.com",
-    url="https://github.com/Lyken17/pytorch-OpCounter/",
-    description="A tool to count the FLOPs of PyTorch model.",
+    author="OneFlow",
+    author_email="",
+    url="",
+    description="A tool to count the FLOPs of OneFlow model.",
     long_description=readme,
     long_description_content_type="text/markdown",
     license="MIT",

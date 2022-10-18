@@ -1,6 +1,6 @@
-import torch
-import torch.nn as nn
-from torch.nn.utils.rnn import PackedSequence
+import oneflow as flow
+import oneflow.nn as nn
+from oneflow.nn.utils.rnn import PackedSequence
 
 
 def _count_rnn_cell(input_size, hidden_size, bias=True):
@@ -12,13 +12,13 @@ def _count_rnn_cell(input_size, hidden_size, bias=True):
     return total_ops
 
 
-def count_rnn_cell(m: nn.RNNCell, x: torch.Tensor, y: torch.Tensor):
+def count_rnn_cell(m: nn.RNNCell, x: flow.Tensor, y: flow.Tensor):
     total_ops = _count_rnn_cell(m.input_size, m.hidden_size, m.bias)
 
     batch_size = x[0].size(0)
     total_ops *= batch_size
 
-    m.total_ops += torch.DoubleTensor([int(total_ops)])
+    m.total_ops += flow.DoubleTensor([int(total_ops)])
 
 
 def _count_gru_cell(input_size, hidden_size, bias=True):
@@ -44,13 +44,13 @@ def _count_gru_cell(input_size, hidden_size, bias=True):
     return total_ops
 
 
-def count_gru_cell(m: nn.GRUCell, x: torch.Tensor, y: torch.Tensor):
+def count_gru_cell(m: nn.GRUCell, x: flow.Tensor, y: flow.Tensor):
     total_ops = _count_gru_cell(m.input_size, m.hidden_size, m.bias)
 
     batch_size = x[0].size(0)
     total_ops *= batch_size
 
-    m.total_ops += torch.DoubleTensor([int(total_ops)])
+    m.total_ops += flow.DoubleTensor([int(total_ops)])
 
 
 def _count_lstm_cell(input_size, hidden_size, bias=True):
@@ -75,13 +75,13 @@ def _count_lstm_cell(input_size, hidden_size, bias=True):
     return total_ops
 
 
-def count_lstm_cell(m: nn.LSTMCell, x: torch.Tensor, y: torch.Tensor):
+def count_lstm_cell(m: nn.LSTMCell, x: flow.Tensor, y: flow.Tensor):
     total_ops = _count_lstm_cell(m.input_size, m.hidden_size, m.bias)
 
     batch_size = x[0].size(0)
     total_ops *= batch_size
 
-    m.total_ops += torch.DoubleTensor([int(total_ops)])
+    m.total_ops += flow.DoubleTensor([int(total_ops)])
 
 
 def count_rnn(m: nn.RNN, x, y):
@@ -91,7 +91,7 @@ def count_rnn(m: nn.RNN, x, y):
     num_layers = m.num_layers
 
     if isinstance(x[0], PackedSequence):
-        batch_size = torch.max(x[0].batch_sizes)
+        batch_size = flow.max(x[0].batch_sizes)
         num_steps = x[0].batch_sizes.size(0)
     else:
         if m.batch_first:
@@ -118,7 +118,7 @@ def count_rnn(m: nn.RNN, x, y):
     # batch_size
     total_ops *= batch_size
 
-    m.total_ops += torch.DoubleTensor([int(total_ops)])
+    m.total_ops += flow.DoubleTensor([int(total_ops)])
 
 
 def count_gru(m: nn.GRU, x, y):
@@ -128,7 +128,7 @@ def count_gru(m: nn.GRU, x, y):
     num_layers = m.num_layers
 
     if isinstance(x[0], PackedSequence):
-        batch_size = torch.max(x[0].batch_sizes)
+        batch_size = flow.max(x[0].batch_sizes)
         num_steps = x[0].batch_sizes.size(0)
     else:
         if m.batch_first:
@@ -155,7 +155,7 @@ def count_gru(m: nn.GRU, x, y):
     # batch_size
     total_ops *= batch_size
 
-    m.total_ops += torch.DoubleTensor([int(total_ops)])
+    m.total_ops += flow.DoubleTensor([int(total_ops)])
 
 
 def count_lstm(m: nn.LSTM, x, y):
@@ -165,7 +165,7 @@ def count_lstm(m: nn.LSTM, x, y):
     num_layers = m.num_layers
 
     if isinstance(x[0], PackedSequence):
-        batch_size = torch.max(x[0].batch_sizes)
+        batch_size = flow.max(x[0].batch_sizes)
         num_steps = x[0].batch_sizes.size(0)
     else:
         if m.batch_first:
@@ -192,4 +192,4 @@ def count_lstm(m: nn.LSTM, x, y):
     # batch_size
     total_ops *= batch_size
 
-    m.total_ops += torch.DoubleTensor([int(total_ops)])
+    m.total_ops += flow.DoubleTensor([int(total_ops)])
